@@ -181,6 +181,8 @@
     <input id="nick" type="text" maxlength="10" placeholder="별명 (10자까지)" autocomplete="off">
     <button class="sbtn" id="upBtn">점수 올리기</button>
     <div class="rkst" id="upMsg"></div>
+    <button class="sbtn" id="cheatBtn" style="width:100%;margin-top:8px;background:#5a2a2a;color:#ffd0d0;border:2px dashed #ff8a8a">🧪 치트: 50000점 <small>(시험용)</small></button>
+    <div class="rkst" id="cheatMsg"></div>
     <button class="sbtn" id="endClose">계속 낚시하기</button></div>
   <div><h3>🏆 순위표 TOP 10</h3><ol class="rk" id="rankList2"></ol><div class="rkst" id="rankSt2"></div></div>
 </div></div>
@@ -1487,7 +1489,7 @@ function bestFishName(){let best=null;for(const s of FISH){if(save.dex[s.id]&&(!
 function openEnd(){if(!['idle','showing','dead'].includes(F.state)){toast('낚시를 마친 뒤에 게임을 끝낼 수 있어요');return;}
   endOpen=true;if(locked&&document.exitPointerLock)document.exitPointerLock();for(const k in keys)keys[k]=false;
   const bf=bestFishName();$('endStats').innerHTML=`최종 점수 <b>${save.score.toLocaleString()}</b>점<br>잡은 물고기 <b>${save.count}</b>마리<br>도감 <b>${Object.keys(save.dex).length}</b> / ${FISH.length}<br>사망 <b>${save.deaths||0}</b>회<br>최고의 물고기 <b>${bf?escH(bf):'-'}</b>`;
-  try{$('nick').value=localStorage.getItem('yeongdoNick')||'';}catch(e){}$('upMsg').textContent='';$('upMsg').classList.remove('err');$('upBtn').disabled=false;
+  try{$('nick').value=localStorage.getItem('yeongdoNick')||'';}catch(e){}$('upMsg').textContent='';$('upMsg').classList.remove('err');$('cheatMsg').textContent='';$('upBtn').disabled=false;
   $('endScreen').style.display='flex';loadRanks();}
 function closeEnd(){endOpen=false;$('endScreen').style.display='none';}
 async function uploadScore(){const msg=$('upMsg');const nick=$('nick').value.trim();msg.classList.remove('err');
@@ -1499,6 +1501,15 @@ async function uploadScore(){const msg=$('upMsg');const nick=$('nick').value.tri
   try{const {error}=await sb.from('scores').insert({nickname:nick,score:Math.round(save.score),catches:Math.min(save.count,10000),dex_count:Object.keys(save.dex).filter(id=>FISH.some(f=>f.id===id)).length,deaths:Math.min(save.deaths||0,10000),best_fish:bestFishName()});
     if(error)throw error;try{localStorage.setItem('yeongdoNick',nick);}catch(e){}msg.textContent='✅ 점수를 올렸어요!';await loadRanks();}
   catch(e){fail('점수를 올리지 못했어요: '+sbReason(e));}}
+// 시험용: 별명 「치트」로 50000점을 올려 보고, 표가 거절하면 이유를 보여 줌
+async function cheatUpload(){const msg=$('cheatMsg'),btn=$('cheatBtn');msg.classList.remove('err');
+  if(!sb){msg.textContent='❌ 시험 실패: supabase-js를 CDN에서 불러오지 못했어요.';msg.classList.add('err');return;}
+  btn.disabled=true;msg.textContent='시험 중… (치트 / 50000점)';
+  try{const {error}=await sb.from('scores').insert({nickname:'치트',score:50000});if(error)throw error;
+    msg.textContent='⚠ 표가 받아들였어요 (거절되지 않음). 순위표에 남은 기록은 Supabase Table Editor에서 지워 주세요.';await loadRanks();}
+  catch(e){msg.textContent='🛡 표가 거절했어요: '+sbReason(e);msg.classList.add('err');}
+  finally{btn.disabled=false;}}
+$('cheatBtn').addEventListener('click',cheatUpload);
 $('upBtn').addEventListener('click',uploadScore);$('nick').addEventListener('keydown',e=>{if(e.key==='Enter')uploadScore();});
 $('endClose').addEventListener('click',closeEnd);$('endBtn').addEventListener('click',()=>{if(started)openEnd();});$('rkRe').addEventListener('click',loadRanks);
 $('endScreen').addEventListener('click',e=>{if(e.target.id==='endScreen')closeEnd();});
