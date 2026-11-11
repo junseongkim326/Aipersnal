@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <title>영도대교 낚시왕 3D</title>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
@@ -77,8 +78,42 @@
   #mJump{right:130px;bottom:30px;background:rgba(120,200,255,.8)}
   #mBook{right:26px;bottom:150px;width:56px;height:56px;font-size:12px;background:rgba(255,255,255,.7)}
   #mRun{right:130px;bottom:118px;width:56px;height:56px;font-size:12px;background:rgba(255,255,255,.7)}
-  .touch #prompt{bottom:180px}
-  .touch #power,.touch #fight{bottom:240px}
+  :root{--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+  #hud{left:calc(14px + var(--sl));top:calc(14px + var(--st))}
+  #mapWrap{right:calc(14px + var(--sr));top:calc(14px + var(--st))}
+  #mCancel{right:calc(130px + var(--sr));bottom:calc(206px + var(--sb));width:56px;height:56px;font-size:12px;background:rgba(255,140,140,.85);display:none}
+  #mMenu{right:calc(130px + var(--sr));top:calc(14px + var(--st));width:46px;height:46px;font-size:20px;background:rgba(255,255,255,.75)}
+  #menu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:25}
+  #menu .inner{padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(360px,90vw)}
+  #menu button{font-family:'Noto Sans KR',sans-serif;font-weight:900;font-size:15px;padding:14px 8px;border-radius:12px;border:none;background:rgba(255,255,255,.9);color:#123}
+  #menu h3{grid-column:1/3;text-align:center;color:#ffd166;font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:22px}
+  #rotate{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);padding:14px 20px;text-align:center;font-size:14px;line-height:1.6;z-index:12;display:none;pointer-events:none;white-space:nowrap}
+  .ctl-touch{display:none}.touch .ctl-touch{display:table}.touch .ctl-key{display:none}
+  .touch #prompt{bottom:calc(150px + var(--sb));font-size:14px;padding:8px 14px;max-width:62vw;white-space:normal;text-align:center}
+  .touch #power,.touch #fight{bottom:calc(205px + var(--sb));width:min(300px,56vw)}
+  .touch #joy{left:calc(24px + var(--sl));bottom:calc(26px + var(--sb))}
+  .touch #mFish{right:calc(26px + var(--sr));bottom:calc(36px + var(--sb))}
+  .touch #mJump{right:calc(130px + var(--sr));bottom:calc(26px + var(--sb))}
+  .touch #mBook{right:calc(26px + var(--sr));bottom:calc(146px + var(--sb))}
+  .touch #mRun{right:calc(130px + var(--sr));bottom:calc(112px + var(--sb))}
+  .touch #attr{bottom:calc(4px + var(--sb));right:calc(50% - 110px);font-size:9px}
+  .touch #card{right:50%;transform:translate(50%,-50%) scale(.9);width:min(290px,70vw)}
+  .touch #card.show{transform:translate(50%,-50%) scale(1)}
+  @media (max-height:520px),(max-width:700px){
+    #hud{padding:7px 10px;min-width:0;border-radius:10px}
+    #hud h1{font-size:15px}
+    #hud .row{font-size:11px;margin-top:2px;gap:8px}#hud .row b{font-size:12px}#score{font-size:15px!important}
+    #hud .opt{display:none}
+    #loc{font-size:11px;margin-top:4px}#bascule{font-size:10px;margin-top:3px}
+    #mapWrap{padding:5px}#minimap{width:96px;height:138px}#mapWrap .lbl{display:none}
+    #toast{top:12%;font-size:14px;padding:8px 14px;max-width:80vw;white-space:normal}
+    #start .inner{padding:14px 16px;max-height:94vh;overflow:auto}#start h1{font-size:30px}#start .s{font-size:12px;margin:6px 0 10px}#start table{font-size:12px;margin-bottom:10px}
+    .btn{font-size:19px;padding:10px 32px}
+    .mbtn{transform:scale(.88)}
+    #start h1{font-size:26px}#start h1 br{display:none}#start td{padding:1px 8px}#loading{margin-bottom:6px}#start .q{margin-top:6px}
+    .touch #mMenu{right:calc(118px + var(--sr))}
+  }
+  @media (orientation:portrait){.touch #prompt{bottom:calc(250px + var(--sb));max-width:84vw}.touch #power,.touch #fight{bottom:calc(310px + var(--sb));width:min(320px,84vw)}#toast{top:30%}}
 </style>
 </head>
 <body>
@@ -86,9 +121,9 @@
   <h1>영도대교 낚시왕</h1>
   <div class="row"><span>점수</span><b id="score">0</b></div>
   <div class="row"><span>잡은 물고기</span><b id="count">0</b></div>
-  <div class="row"><span>도감</span><b id="dex">0 / 16</b></div>
+  <div class="row opt"><span>도감</span><b id="dex">0 / 16</b></div>
   <div class="row"><span>시각</span><b id="clock">15:00</b></div>
-  <div class="row"><span>그래픽 (G)</span><b id="qual">높음</b></div>
+  <div class="row opt"><span>그래픽</span><b id="qual">높음</b></div>
   <div id="loc">롯데백화점 광복점 앞</div>
   <div id="bascule">다음 도개까지</div>
 </div>
@@ -128,11 +163,22 @@
   <div class="mbtn" id="mJump">점프</div>
   <div class="mbtn" id="mRun">달리기</div>
   <div class="mbtn" id="mBook">도감</div>
+  <div class="mbtn" id="mCancel">회수</div>
+  <div class="mbtn" id="mMenu">⚙</div>
 </div>
+<div id="menu"><div class="inner panel"><h3>메뉴</h3><button id="muQual">그래픽: 중간</button><button id="muTime">시간 +3시간</button><button id="muSound">소리 끄기</button><button id="muHome">시작 위치로</button><button id="muFull">전체 화면</button><button id="muClose">닫기</button></div></div>
+<div id="rotate" class="panel">📱 휴대폰을 <b>가로로</b> 돌리면<br>훨씬 편하게 할 수 있어요</div>
 <div id="start"><div class="inner panel">
-  <h1>영도대교<br>낚시왕 3D</h1>
+  <h1>영도대교<br> 낚시왕 3D</h1>
   <div class="s">실제 지도 데이터로 만든 영도대교 일대예요. 롯데백화점 광복점 앞 물가에서 출발해 다리를 건너 영도경찰서까지 자유롭게 돌아다니며 낚시하세요.<br>다리 위·먼 바다일수록 희귀한 물고기, 밤엔 갈치와 볼락!<br>6분마다 중구 쪽 31.3m 상판이 75°까지 들려요. 다리 위에 있다간 풍덩!</div>
-  <table>
+  <table class="ctl-touch">
+    <tr><td>이동</td><td>왼쪽 아래 조이스틱</td></tr>
+    <tr><td>시점</td><td>화면 드래그 · 두 손가락으로 줌</td></tr>
+    <tr><td>낚시</td><td>🎣 길게 눌렀다 떼서 던지기 → 찌가 잠기면 🎣 톡</td></tr>
+    <tr><td>파이팅</td><td>🎣 누르면 감기, 떼면 풀기</td></tr>
+    <tr><td>기타</td><td>회수 · 도감 · ⚙ 메뉴(그래픽·시간·소리)</td></tr>
+  </table>
+  <table class="ctl-key">
     <tr><td>이동</td><td>WASD · Shift 달리기 · Space 점프</td></tr>
     <tr><td>시점</td><td>마우스 드래그 / 클릭해서 고정 · 휠 줌</td></tr>
     <tr><td>낚시</td><td>F 길게 → 놓아서 던지기 → 찌가 잠기면 F</td></tr>
@@ -141,7 +187,7 @@
   </table>
   <div id="loading">세계를 만드는 중…</div>
   <button class="btn" id="startBtn" disabled>낚시 시작!</button>
-  <div class="q">느리면 G 키로 그래픽을 낮춰 보세요.</div>
+  <div class="q">느리면 G 키(휴대폰은 ⚙ 메뉴)로 그래픽을 낮춰 보세요. 휴대폰은 가로 화면을 추천해요.</div>
 </div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -174,6 +220,8 @@ const inBridgeZ=z=>z>=RN1&&z<=RS1, overWaterZ=z=>z>BN&&z<BS;
 const BOUND={x0:-240,x1:300,z0:-440,z1:340};
 const BOAT_LANES=[-18.1,26.4,70.9], SHIP_LANE=-65.75;
 const flags=[];
+const IS_TOUCH=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)||(('ontouchstart' in window)&&navigator.maxTouchPoints>0&&Math.min(screen.width,screen.height)<900);
+const KEYN=IS_TOUCH?'🎣 버튼':'F';
 
 /* ================= 렌더러 ================= */
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
@@ -758,8 +806,9 @@ const SFX={
 
 /* ================= 렌더 파이프라인 (반사 → HDR 장면 → 블룸 → ACES 톤매핑) ================= */
 const isGL2=renderer.capabilities.isWebGL2;
-const HDR_TYPE=isGL2?THREE.HalfFloatType:THREE.UnsignedByteType;
-let QL=('ontouchstart' in window||navigator.maxTouchPoints>0)?1:2;
+const HDR_OK=isGL2&&(()=>{try{const e=renderer.extensions;return !!(e.get('EXT_color_buffer_float')||e.get('EXT_color_buffer_half_float'));}catch(err){return false;}})();
+const HDR_TYPE=HDR_OK?THREE.HalfFloatType:THREE.UnsignedByteType;
+let QL=IS_TOUCH?1:2;
 let rtMain=null,rtRefl=null,rtB0=null,rtB1a=null,rtB1b=null,rtB2a=null,rtB2b=null;
 const fsCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);const fsScene=new THREE.Scene();const fsQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2));fsQuad.frustumCulled=false;fsScene.add(fsQuad);
 const FS_VS=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}`;
@@ -789,11 +838,11 @@ function setupPipeline(){disposeRTs();const pr=QL===2?Math.min(window.devicePixe
     rtB0=new THREE.WebGLRenderTarget(w>>1,h>>1,rtOpts(false));rtB1a=new THREE.WebGLRenderTarget(w>>2,h>>2,rtOpts(false));rtB1b=rtB1a.clone();rtB2a=new THREE.WebGLRenderTarget(w>>3,h>>3,rtOpts(false));rtB2b=rtB2a.clone();
   }else{renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.outputEncoding=THREE.sRGBEncoding;}
   waterU.uHasRefl.value=rtRefl?1:0;waterU.tRefl.value=rtRefl?rtRefl.texture:dummyTex;
-  const sm=QL===2?2048:1024;sun.shadow.mapSize.set(sm,sm);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}
+  const sm=QL===2&&!IS_TOUCH?2048:1024;sun.shadow.mapSize.set(sm,sm);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}
   pMat.uniforms.uScale.value=h/2;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
   scene.traverse(o=>{if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true);}});skyMat.needsUpdate=true;
-  const q=$('qual');if(q)q.textContent=QL_NAMES[QL];}
-addEventListener('resize',()=>setupPipeline());
+  const q=$('qual');if(q)q.textContent=QL_NAMES[QL];const mq=$('muQual');if(mq)mq.textContent='그래픽: '+QL_NAMES[QL];}
+let _rsT=0;addEventListener('resize',()=>{clearTimeout(_rsT);_rsT=setTimeout(()=>{setupPipeline();if(typeof checkRotate==='function')checkRotate();},250);});
 // 수면 반사 카메라 (오블리크 클리핑)
 const reflCam=new THREE.PerspectiveCamera();const _rv=new V3(),_rt=new V3(),_ru=new V3(),_plane=new THREE.Plane(),_clip=new THREE.Vector4(),_qv=new THREE.Vector4();
 const reflHide=[];
@@ -888,7 +937,8 @@ function shoreDist(x,z){for(let r=4;r<=80;r+=6){for(let a=0;a<8;a++){const an=a/
 
 /* ================= 입력 ================= */
 const keys={};let actionHeld=false,actionPrev=false,locked=false,mouseAction=false,touchAction=false,touchRun=false;const joy={x:0,y:0,id:null};
-const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;if(isTouch)document.body.classList.add('touch');
+const isTouch=IS_TOUCH;if(isTouch)document.body.classList.add('touch');
+document.addEventListener('gesturestart',e=>e.preventDefault());document.addEventListener('dblclick',e=>e.preventDefault());
 let started=false,bookOpen=false;
 addEventListener('keydown',e=>{if(!started)return;if(['Space','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.repeat)return;
   if(e.code==='Tab'||e.code==='KeyB')toggleBook();
@@ -912,9 +962,23 @@ if(isTouch){const J=$('joy'),K=$('knob');
   const jend=e=>{for(const t of e.changedTouches)if(t.identifier===joy.id){joy.id=null;joy.x=joy.y=0;K.style.left='40px';K.style.top='40px';}};J.addEventListener('touchend',jend);J.addEventListener('touchcancel',jend);
   const hold=(id,fn)=>{const el=$(id);el.addEventListener('touchstart',e=>{fn(true);e.preventDefault();},{passive:false});el.addEventListener('touchend',e=>{fn(false);e.preventDefault();},{passive:false});};
   hold('mFish',v=>touchAction=v);hold('mJump',v=>keys.Space=v);hold('mRun',v=>{if(v){touchRun=!touchRun;$('mRun').style.background=touchRun?'rgba(255,209,102,.9)':'rgba(255,255,255,.7)';}});hold('mBook',v=>{if(v)toggleBook();});
-  let camT=null;cvs.addEventListener('touchstart',e=>{for(const t of e.changedTouches){if(camT===null)camT={id:t.identifier,x:t.clientX,y:t.clientY};}},{passive:true});
-  cvs.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(camT&&t.identifier===camT.id){CAM.yaw-=(t.clientX-camT.x)*0.006;CAM.pitch=clamp(CAM.pitch+(t.clientY-camT.y)*0.005,-0.25,1.35);camT.x=t.clientX;camT.y=t.clientY;}}e.preventDefault();},{passive:false});
-  cvs.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(camT&&t.identifier===camT.id)camT=null;});}
+  hold('mCancel',v=>{if(v)cancelFishing(true);});hold('mMenu',v=>{if(v)toggleMenu(true);});
+  const camTs=new Map();let pinch0=0,dist0=9;
+  cvs.addEventListener('touchstart',e=>{for(const t of e.changedTouches)camTs.set(t.identifier,{x:t.clientX,y:t.clientY});if(camTs.size===2){const [a,b]=[...camTs.values()];pinch0=Math.hypot(a.x-b.x,a.y-b.y);dist0=CAM.dist;}e.preventDefault();},{passive:false});
+  cvs.addEventListener('touchmove',e=>{for(const t of e.changedTouches){const c=camTs.get(t.identifier);if(!c)continue;if(camTs.size===1){CAM.yaw-=(t.clientX-c.x)*0.0065;CAM.pitch=clamp(CAM.pitch+(t.clientY-c.y)*0.005,-0.25,1.35);}c.x=t.clientX;c.y=t.clientY;}
+    if(camTs.size===2&&pinch0>0){const [a,b]=[...camTs.values()];CAM.dist=clamp(dist0*pinch0/Math.max(20,Math.hypot(a.x-b.x,a.y-b.y)),3,60);}e.preventDefault();},{passive:false});
+  const cend=e=>{for(const t of e.changedTouches)camTs.delete(t.identifier);if(camTs.size<2)pinch0=0;};cvs.addEventListener('touchend',cend);cvs.addEventListener('touchcancel',cend);}
+// 메뉴 (휴대폰)
+let menuOpen=false;function toggleMenu(v){menuOpen=v;$('menu').style.display=v?'flex':'none';}
+$('muClose').onclick=()=>toggleMenu(false);$('menu').addEventListener('click',e=>{if(e.target.id==='menu')toggleMenu(false);});
+$('muQual').onclick=()=>{QL=(QL+2)%3;setupPipeline();toast('그래픽 품질: '+QL_NAMES[QL]);};
+$('muTime').onclick=()=>{hour=(hour+3)%24;toast('⏩ '+fmtHour(hour));};
+$('muSound').onclick=()=>{muted=!muted;if(master)master.gain.value=muted?0:0.7;$('muSound').textContent=muted?'소리 켜기':'소리 끄기';};
+$('muHome').onclick=()=>{if(F.state!=='idle')cancelFishing(true);P.pos.set(SPAWN.x,SPAWN.y,SPAWN.z);P.vy=0;P.swim=false;toggleMenu(false);toast('롯데백화점 광복점 앞으로 이동했어요');};
+$('muFull').onclick=()=>{goFull();toggleMenu(false);};
+function goFull(){try{const d=document.documentElement;const r=(d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d);if(r&&r.then)r.then(()=>{try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{});}catch(e){}}).catch(()=>{});}catch(e){}}
+let rotT=0;function checkRotate(){const el=$('rotate');if(!el)return;const show=isTouch&&started&&innerHeight>innerWidth*1.1;el.style.display=show?'block':'none';clearTimeout(rotT);if(show)rotT=setTimeout(()=>el.style.display='none',5000);}
+addEventListener('orientationchange',()=>setTimeout(checkRotate,300));
 
 /* ================= 물고기 ================= */
 const RAR={'일반':{c:'#8fd3ff',b:0},'희귀':{c:'#7dff9a',b:1.5},'에픽':{c:'#d48bff',b:3},'전설':{c:'#ffcf3f',b:6},'쓰레기':{c:'#aaaaaa',b:-0.6}};
@@ -971,6 +1035,7 @@ const F={state:'idle',power:0,pdir:1,start:new V3(),target:new V3(),flyT:0,flyDu
   fish:null,tension:0.4,progress:0,slack:0,dir:new V3(),perp:new V3(),spot:0,dist0:10,fishPos:new V3(),fishMesh:null,showT:0,tickT:0,thrashT:0,jump:null,landT:0,from:new V3(),retT:0,rodPitch:0.25,bend:0,onBridge:false};
 const _v=new V3(),_v2=new V3(),_tip=new V3();
 function forwardXZ(yaw,out){return out.set(Math.sin(yaw),0,Math.cos(yaw));}
+function waterDirNear(){let best=null,bc=0;for(let a=0;a<24;a++){const yaw=a/24*Math.PI*2;let c=0;for(let k=2;k<=9;k++){if(isOpenWater(P.pos.x+Math.sin(yaw)*k,P.pos.z+Math.cos(yaw)*k))c++;}const d=Math.abs(((yaw-CAM.yaw+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI);const sc=c-d*0.8;if(c>=3&&sc>bc){bc=sc;best=yaw;}}return best;}
 function fishingSpotAhead(){if(P.swim||!P.grounded)return false;forwardXZ(CAM.yaw,_v);for(let k=2;k<=9;k+=1){if(isOpenWater(P.pos.x+_v.x*k,P.pos.z+_v.z*k))return true;}return false;}
 function cancelFishing(manual){if(F.state==='idle'||F.state==='showing')return;if(F.state==='fight'&&manual)toast('줄을 풀어 물고기를 놓아줬어요');F.fish=null;if(F.fishMesh){scene.remove(F.fishMesh);F.fishMesh=null;}if(F.jump){scene.remove(F.jump.mesh);F.jump=null;}shadowDisc.visible=false;
   if(['casting','waiting','bite','fight'].includes(F.state)){F.state='retract';F.retT=0;F.from.copy(bobber.position);}else F.state='idle';}
@@ -998,7 +1063,8 @@ function updateLine(a,b,sag){const arr=lineGeo.attributes.position.array;const m
 function updateFishing(dt,time){const press=actionHeld&&!actionPrev,release=!actionHeld&&actionPrev;rodTip.getWorldPosition(_tip);
   switch(F.state){
   case 'idle':F.rodPitch=lerp(F.rodPitch,0.3,dt*6);F.bend=lerp(F.bend,0,dt*6);
-    if(press&&!bookOpen){if(fishingSpotAhead()){F.state='charging';F.power=0;F.pdir=1;P.heading=CAM.yaw;}else toast(P.swim?'수영 중에는 낚시할 수 없어요':'물가(안벽 끝이나 다리 난간)를 바라보고 던지세요');}break;
+    if(press&&!bookOpen&&!menuOpen){if(!fishingSpotAhead()&&!P.swim&&P.grounded){const aim=waterDirNear();if(aim!==null){CAM.yaw=aim;}}
+      if(fishingSpotAhead()){F.state='charging';F.power=0;F.pdir=1;P.heading=CAM.yaw;}else toast(P.swim?'수영 중에는 낚시할 수 없어요':'물가(안벽 끝이나 다리 난간) 가까이 가서 던지세요');}break;
   case 'charging':P.heading=CAM.yaw;F.power+=F.pdir*dt*1.05;if(F.power>=1){F.power=1;F.pdir=-1;}if(F.power<=0){F.power=0;F.pdir=1;}
     F.rodPitch=lerp(F.rodPitch,-0.8,dt*8);$('pwFill').style.width=(F.power*100)+'%';if(release)startCast();break;
   case 'casting':{F.rodPitch=lerp(F.rodPitch,1.15,dt*14);F.flyT+=dt/F.flyDur;const t=Math.min(F.flyT,1);
@@ -1177,11 +1243,14 @@ function locationName(){const x=P.pos.x,z=P.pos.z;if(P.swim)return'🌊 부산 �
   if(x>8&&z>-380)return'🏬 롯데백화점 광복점 앞';if(x<-8&&z>-300)return'중앙동·남포동 골목';return'중앙대로';}
 let promptText='',promptHot=false;
 function setPrompt(t,hot){if(t!==promptText){$('prompt').textContent=t;promptText=t;}if(hot!==promptHot){$('prompt').classList.toggle('hot',hot);promptHot=hot;}$('prompt').style.opacity=t?1:0;}
-function updateHUD(){$('score').textContent=save.score.toLocaleString();$('count').textContent=save.count;$('dex').textContent=Object.keys(save.dex).length+' / '+FISH.length;$('clock').textContent=fmtHour(hour)+(nightF>0.5?' 🌙':' ☀️');$('loc').textContent=locationName();
+let waterNearCached=false;
+function updateHUD(){if(frame%20===0)waterNearCached=waterDirNear()!==null;$('score').textContent=save.score.toLocaleString();$('count').textContent=save.count;$('dex').textContent=Object.keys(save.dex).length+' / '+FISH.length;$('clock').textContent=fmtHour(hour)+(nightF>0.5?' 🌙':' ☀️');$('loc').textContent=locationName();
   let t='',hot=false;
-  switch(F.state){case 'idle':t=P.swim?'Space: 가까운 안벽으로 올라가기':(fishingSpotAhead()?'🎣 F를 길게 눌러 캐스팅':'물가(안벽·다리 난간)로 가서 바다를 바라보세요');break;
-    case 'charging':t='놓으면 던져요! 멀리 던질수록 희귀한 물고기';break;case 'casting':t='휘익~';break;case 'waiting':t='찌를 지켜보세요... (Q: 회수)';break;case 'bite':t='❗ 지금! F 챔질!';hot=true;break;
-    case 'fight':t=F.tension>0.8?'⚠ 장력 위험! F를 떼세요':F.tension<0.25?'F를 눌러 감으세요':'F 누르고 떼며 초록 구간 유지!';hot=F.tension>0.85;break;case 'landing':t='끌어올린다!';break;case 'showing':t='F: 계속하기';break;}
+  const nearW=!P.swim&&(fishingSpotAhead()||waterNearCached);
+  switch(F.state){case 'idle':t=P.swim?(isTouch?'점프 버튼: 가까운 안벽으로 올라가기':'Space: 가까운 안벽으로 올라가기'):(nearW?`${KEYN}을 길게 눌러 캐스팅`:'물가(안벽·다리 난간)로 가 보세요');break;
+    case 'charging':t='놓으면 던져요! 멀리 던질수록 희귀';break;case 'casting':t='휘익~';break;case 'waiting':t=isTouch?'찌를 지켜보세요 (회수 버튼)':'찌를 지켜보세요... (Q: 회수)';break;case 'bite':t=`❗ 지금! ${KEYN} 챔질!`;hot=true;break;
+    case 'fight':t=F.tension>0.8?`⚠ 장력 위험! ${KEYN}을 떼세요`:F.tension<0.25?`${KEYN}을 눌러 감으세요`:'누르고 떼며 초록 구간 유지!';hot=F.tension>0.85;break;case 'landing':t='끌어올린다!';break;case 'showing':t=isTouch?'🎣 톡: 계속하기':'F: 계속하기';break;}
+  if(isTouch){const cb=$('mCancel');const show=['waiting','bite','fight','casting'].includes(F.state);if(cb.style.display!==(show?'flex':'none'))cb.style.display=show?'flex':'none';}
   setPrompt(t,hot);}
 let toastTimer=0;function toast(msg,ms=2600){const el=$('toast');el.textContent=msg;el.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.opacity=0,ms);}
 function toggleBook(){bookOpen=!bookOpen;$('book').style.display=bookOpen?'flex':'none';if(bookOpen){if(locked&&document.exitPointerLock)document.exitPointerLock();
@@ -1214,7 +1283,7 @@ setupPipeline();updateSky();updateEnv(true);
 loop();
 $('loading').textContent=`실제 건물 ${OSM.bld.length}채 · 도로 ${ROADS.length}개 · 주변 건물 ${nearCount+farBoxes.length}채 생성 완료`;
 $('startBtn').disabled=false;
-$('startBtn').addEventListener('click',()=>{started=true;$('start').style.display='none';initAudio();if(AC&&AC.resume)AC.resume();toast('롯데백화점 광복점 앞 물가에서 출발! 바다를 바라보고 F를 길게 눌러보세요',4000);});
+$('startBtn').addEventListener('click',()=>{started=true;$('start').style.display='none';if(isTouch){goFull();setTimeout(checkRotate,600);}initAudio();if(AC&&AC.resume)AC.resume();toast(isTouch?'출발! 물가에서 🎣 버튼을 길게 눌렀다 떼보세요':'롯데백화점 광복점 앞 물가에서 출발! 바다를 바라보고 F를 길게 눌러보세요',4000);});
 
 </script>
 </body>
