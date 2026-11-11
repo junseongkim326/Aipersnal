@@ -249,6 +249,8 @@ const inBridgeZ=z=>z>=RN1&&z<=RS1, overWaterZ=z=>z>BN&&z<BS;
 const BOUND={x0:-240,x1:300,z0:-440,z1:340};
 const BOAT_LANES=[-18.1,26.4,70.9], SHIP_LANE=-65.75;
 const flags=[];
+const LAMPS=[];          // 밤에 실제로 빛을 비출 가로등 위치들
+const SL_POS=[];        // 가로등 기둥 (인스턴스)
 const IS_TOUCH=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)||(('ontouchstart' in window)&&navigator.maxTouchPoints>0&&Math.min(screen.width,screen.height)<900);
 const KEYN=IS_TOUCH?'🎣 버튼':'F';
 
@@ -533,6 +535,15 @@ for(const r of ROADS){if(!['primary','secondary','tertiary'].includes(r.h))conti
     for(const sgn of [-1,1]){const x=b[0]-dz*sgn*(w/2+1.6),z=b[1]+dx*sgn*(w/2+1.6);if(x<BOUND.x0||x>BOUND.x1||z<BOUND.z0||z>BOUND.z1)continue;if(Math.abs(x)<BHW+3&&z>RN1-4&&z<RS1+4)continue;
       if(isLand(x,z)&&!isRoad(x,z)&&mget(x,z,2)<60&&SR()<0.8)treeAt(x,z,LAND_H,srand(0.8,1.05));}}}
 
+// 가로등 (큰 도로 가장자리)
+for(const r of ROADS){if(!['primary','secondary','tertiary'].includes(r.h))continue;const w=roadWidth(r);const pts=resample(r.p,30);
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];let dx=b[0]-a[0],dz=b[1]-a[1];const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;const sgn=i%2?1:-1;
+    const x=b[0]-dz*sgn*(w/2+0.7),z=b[1]+dx*sgn*(w/2+0.7);if(x<BOUND.x0||x>BOUND.x1||z<BOUND.z0||z>BOUND.z1)continue;if(Math.abs(x)<BHW+3&&z>RN1-4&&z<RS1+4)continue;
+    if(isLand(x,z)&&mget(x,z,2)<60)SL_POS.push([x,z]);}}
+function buildStreetLamps(){const pg=new THREE.CylinderGeometry(0.09,0.14,7,8);const hg=new THREE.BoxGeometry(0.5,0.18,0.9);
+  const pi=new THREE.InstancedMesh(pg,lampPoleMatGet(),SL_POS.length),hi=new THREE.InstancedMesh(hg,bulbMat,SL_POS.length);
+  SL_POS.forEach((p,i)=>{_mt.makeTranslation(p[0],LAND_H+3.5,p[1]);pi.setMatrixAt(i,_mt);_mt.makeTranslation(p[0],LAND_H+7,p[1]);hi.setMatrixAt(i,_mt);LAMPS.push(new V3(p[0],LAND_H+6.8,p[1]));addBoxCollider(p[0]-0.2,p[0]+0.2,p[1]-0.2,p[1]+0.2,LAND_H+7);});
+  pi.castShadow=true;scene.add(pi);scene.add(hi);}
 /* 절차 생성 건물 (OSM 범위 밖) */
 const COV=OSM.cov;const TH=-0.2808;
 for(const ar of OSM.areas){if(ar.k!=='parking'&&ar.k!=='garden')continue;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of ar.p){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);z0=Math.min(z0,q[1]);z1=Math.max(z1,q[1]);}for(let x=x0-2;x<=x1+2;x+=2)for(let z=z0-2;z<=z1+2;z+=2)if(pip(x,z,ar.p))occSet(x,z);}
@@ -612,7 +623,7 @@ function lamp(x,y,z,parent,side){const g=new THREE.Group();const pm=lampPoleMatG
   for(const sx of [-1,1]){const arm=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.07,0.07),pm);arm.position.set(sx*0.45,4.9,0);g.add(arm);
     const lan=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.16,0.55,8),bulbMat);lan.position.set(sx*0.9,4.65,0);g.add(lan);const cap=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.22,8),pm);cap.position.set(sx*0.9,5.03,0);g.add(cap);
     const s=new THREE.Sprite(glowMat);s.scale.set(3.4,3.4,3.4);s.position.set(sx*0.9,4.6,0);g.add(s);glows.push(s);}
-  g.position.set(x,y,z);g.rotation.y=side>0?0:Math.PI;(parent||scene).add(g);}
+  g.position.set(x,y,z);g.rotation.y=side>0?0:Math.PI;(parent||scene).add(g);if(!parent)LAMPS.push(new V3(x-side*0.6,y+4.6,z));}
 const RAIL_INST=[];
 function railing(z0,z1,parent,yfn){const posts=[];for(let z=z0;z<=z1+0.01;z+=2.0)posts.push(z);const pg=new THREE.BoxGeometry(0.12,1.1,0.12);
   for(const side of [-1,1]){const im=new THREE.InstancedMesh(pg,railMat,posts.length);posts.forEach((z,i)=>{_mt.makeTranslation(side*(BHW-0.25),yfn(z)+0.55,z);im.setMatrixAt(i,_mt);});im.castShadow=true;(parent||scene).add(im);
@@ -940,6 +951,9 @@ function freeSpot(x,z){return isLand(x,z)&&mget(x,z,2)<60;}
 let SPAWN={x:40,y:LAND_H,z:-112,yaw:0};
 {let best=null,bd=1e9;for(const s of SHORE){if(s.z>0)continue;const x=s.x-s.nx*3,z=s.z-s.nz*3;if(!freeSpot(x,z))continue;const d=Math.hypot(s.x-45,s.z+108);if(d<bd){bd=d;best={x,z,yaw:Math.atan2(s.nx,s.nz)};}}
  if(best)SPAWN={x:best.x,y:LAND_H,z:best.z,yaw:best.yaw};}
+// 물가 산책로 가로등
+SHORE.forEach((s,i)=>{if(i%6!==3)return;const x=s.x-s.nx*2.4,z=s.z-s.nz*2.4;if(freeSpot(x,z)&&Math.hypot(x-SPAWN.x,z-SPAWN.z)>3)SL_POS.push([x,z]);});
+buildStreetLamps();
 // 낚시꾼 NPC
 const NPCS=[];
 {const cols=[[0x4a6a3a,0x2a2a2a,0xd8d8d8],[0x8a2a2a,0x3a3a4a,0x222222],[0x2a4a8a,0x4a4a3a,0xe8c040],[0x6a6a6a,0x2a3a4a,0x9a2a2a],[0xd8b040,0x34465a,0x1f4f8f],[0x2f6f6f,0x2a2a2a,0xffffff]];let n=0;
@@ -949,14 +963,16 @@ const NPCS=[];
    const chair=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.5),stdMat({color:0x2a5a8a}));chair.position.set(x-s.nx*0.6,LAND_H+0.2,z-s.nz*0.6);scene.add(chair);
    addBoxCollider(x-0.45,x+0.45,z-0.45,z+0.45,LAND_H+1.8);NPCS.push({p,r,ph:Math.random()*6,s,line:null});n++;}}
 
-const P={pos:new V3(SPAWN.x,SPAWN.y,SPAWN.z),vy:0,grounded:true,swim:false,heading:SPAWN.yaw,walkPh:0,speed:0};
+const P={pos:new V3(SPAWN.x,SPAWN.y,SPAWN.z),vy:0,grounded:true,swim:false,heading:SPAWN.yaw,walkPh:0,speed:0,onLeaf:false,leafS:0};
 const CAM={yaw:SPAWN.yaw,pitch:0.3,dist:9,shake:0};
 
 /* ================= 충돌 / 지면 ================= */
 const S=[];
 function leafOpen(z){return z>LEAF0&&z<LEAF1&&leafAngle>0.01;}
+const LEAF_LEN=LEAF1-LEAF0;
+function leafTopAt(z){const c=Math.cos(leafAngle);if(c<1e-3)return null;const s=(z-LEAF0)/c;if(s<0||s>LEAF_LEN)return null;return DECK+s*Math.sin(leafAngle);}
 function solidsAt(x,z){S.length=0;const land=isLand(x,z);const ax=Math.abs(x),az=Math.abs(z);const inBr=ax<=BHW&&inBridgeZ(z);
-  if(inBr){const t=deckTop(z);if(land||!overWaterZ(z))S.push(t,-20);else if(!leafOpen(z))S.push(t,t-1.3);}
+  if(inBr){const t=deckTop(z);if(land||!overWaterZ(z))S.push(t,-20);else if(!leafOpen(z))S.push(t,t-1.3);else{const lt=leafTopAt(z);if(lt!==null)S.push(lt,lt-1.3);}}
   else if(land)S.push(LAND_H,-20);
   if(!land)for(const pz of PIERS){const big=BIG_PIER(pz);if(ax<(big?11.9:9.9)&&Math.abs(z-pz)<(big?3.9:2.2))S.push(DECK-2.8,-20);}
   if(inBr&&ax>BHW-0.75&&!leafOpen(z)){const t=deckTop(z);S.push(t+1.15,t-1.3);}
@@ -1169,24 +1185,31 @@ function updateFishing(dt,time){const press=actionHeld&&!actionPrev,release=!act
 /* ================= 시간 / 하늘색 ================= */
 let hour=15.0;let nightF=0;
 const C=(h)=>new THREE.Color(h);
-const SKY={day:{top:C('#2f6fc4'),hor:C('#b9d6ee'),sun:C('#fff1da'),cl:C('#f4f6f8')},gold:{top:C('#33558f'),hor:C('#f0a060'),sun:C('#ffb36b'),cl:C('#f6c2a0')},night:{top:C('#030814'),hor:C('#121d38'),sun:C('#7f93c8'),cl:C('#1a2236')}};
+const SKY={day:{top:C('#2f6fc4'),hor:C('#b9d6ee'),sun:C('#fff1da'),cl:C('#f4f6f8')},gold:{top:C('#33558f'),hor:C('#f0a060'),sun:C('#ffb36b'),cl:C('#f6c2a0')},night:{top:C('#0a1734'),hor:C('#3a4466'),sun:C('#a8bce8'),cl:C('#2c3450')}};
 const c1=new THREE.Color(),c2=new THREE.Color(),c3=new THREE.Color(),c4=new THREE.Color();const sunDir=new V3(),_ld=new V3();
-const DEEP_D=C('#0b3442').convertSRGBToLinear(),DEEP_N=C('#020c16').convertSRGBToLinear(),SH_D=C('#2b6f6c').convertSRGBToLinear(),SH_N=C('#06222c').convertSRGBToLinear();
+const DEEP_D=C('#0b3442').convertSRGBToLinear(),DEEP_N=C('#071b2c').convertSRGBToLinear(),SH_D=C('#2b6f6c').convertSRGBToLinear(),SH_N=C('#123a48').convertSRGBToLinear();
 function fmtHour(h){const hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
 function updateSky(){const ang=(hour-6)/12*Math.PI;sunDir.set(Math.cos(ang),Math.sin(ang)*0.9,0.45).normalize();const sy=sunDir.y;
   const dayK=smooth(-0.05,0.35,sy);const nightK=1-smooth(-0.22,0.02,sy);nightF=nightK;
   c1.copy(SKY.gold.top).lerp(SKY.day.top,dayK).lerp(SKY.night.top,nightK);c2.copy(SKY.gold.hor).lerp(SKY.day.hor,dayK).lerp(SKY.night.hor,nightK);c3.copy(SKY.gold.sun).lerp(SKY.day.sun,dayK).lerp(SKY.night.sun,nightK);c4.copy(SKY.gold.cl).lerp(SKY.day.cl,dayK).lerp(SKY.night.cl,nightK);
-  const sb=lerp(0.35,1.35,1-nightK);
+  const sb=lerp(0.55,1.35,1-nightK);
   skyU.uTop.value.copy(c1).convertSRGBToLinear().multiplyScalar(sb);skyU.uHor.value.copy(c2).convertSRGBToLinear().multiplyScalar(sb*1.1);skyU.uSunCol.value.copy(c3).convertSRGBToLinear();skyU.uCloud.value.copy(c4).convertSRGBToLinear().multiplyScalar(sb);skyU.uSunDir.value.copy(sunDir);skyU.uNight.value=nightK;
   scene.fog.color.copy(c2).convertSRGBToLinear().multiplyScalar(sb*1.05);
   const lightDir=sy>-0.05?sunDir:_ld.copy(sunDir).negate();
-  sun.color.copy(c3).convertSRGBToLinear();sun.intensity=sy>-0.05?lerp(0.6,2.6,dayK)*(1-nightK*0.8):0.3;hemi.intensity=lerp(0.06,0.25,1-nightK);hemi.color.copy(c2).convertSRGBToLinear();
+  sun.color.copy(c3).convertSRGBToLinear();sun.intensity=sy>-0.05?lerp(0.6,2.6,dayK)*(1-nightK*0.8):0.75;hemi.intensity=lerp(0.42,0.25,1-nightK);hemi.color.copy(c2).convertSRGBToLinear().lerp(MOON_C,nightK*0.6);
   sun.position.copy(P.pos).addScaledVector(lightDir,250);sun.target.position.copy(P.pos);
   waterU.uSunDir.value.copy(lightDir);waterU.uSunColor.value.copy(c3).convertSRGBToLinear().multiplyScalar(sy>-0.05?1:0.5);
   waterU.uSkyTop.value.copy(skyU.uTop.value);waterU.uSkyHor.value.copy(skyU.uHor.value);
   waterU.uDeep.value.copy(DEEP_D).lerp(DEEP_N,nightK);waterU.uShallow.value.copy(SH_D).lerp(SH_N,nightK);waterU.uFogColor.value.copy(scene.fog.color);waterU.uNight.value=nightK;
   const lit=smooth(0.1,0.7,nightK);for(const n of nightMats){n.m.emissiveIntensity=(n.base||0)+lit*n.k;}glowMat.opacity=lit*0.9;pMat.uniforms.uBright.value=lerp(1,0.35,nightK);
-  compMat.uniforms.uExposure.value=lerp(1.0,1.35,nightK);renderer.toneMappingExposure=lerp(1.0,1.3,nightK);}
+  compMat.uniforms.uExposure.value=lerp(1.0,1.65,nightK);renderer.toneMappingExposure=lerp(1.0,1.6,nightK);NIGHT_LIT=lit;}
+// 밤 조명: 가까운 가로등 5개가 실제로 주변을 비추고, 캐릭터는 낚시 랜턴을 켬
+const MOON_C=C('#7f95c8').convertSRGBToLinear();let NIGHT_LIT=0;
+const LPOOL=[];for(let i=0;i<5;i++){const l=new THREE.PointLight(0xffd9a0,0,30,1.3);l.castShadow=false;scene.add(l);LPOOL.push(l);}
+const lantern=new THREE.PointLight(0xfff0d0,0,20,1.2);lantern.position.set(0,2.3,0.5);player.add(lantern);
+const lanternMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.07,0.16,8),bulbMat);lanternMesh.position.set(0.22,1.0,-0.3);player.add(lanternMesh);
+let lpT=0;function updateLamps(dt){lantern.intensity=NIGHT_LIT*1.4;lpT-=dt;if(lpT<=0){lpT=0.3;const p=P.pos;const near=LAMPS.map(v=>[v,(v.x-p.x)**2+(v.z-p.z)**2]).sort((a,b)=>a[1]-b[1]);LPOOL.forEach((l,i)=>{const n=near[i];if(n&&n[1]<90*90){l.position.copy(n[0]);l.userData.on=1;}else l.userData.on=0;});}
+  for(const l of LPOOL)l.intensity=NIGHT_LIT*1.8*(l.userData.on||0);}
 
 /* ================= 도개 이벤트 (75°까지) ================= */
 const BAS={t:170,PER:360,WARN:270,RISE:280,HOLD:305,LOWER:345};let basStage='normal',tallX=-500;
@@ -1194,7 +1217,7 @@ const tallShip=shipMesh(48,0x1f2f4f,0xffffff);tallShip.visible=false;tallShip.ro
 {const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.3,24,8),lampPoleMatGet());mast.position.set(0,14,4);tallShip.add(mast);}
 function updateBascule(dt){BAS.t=(BAS.t+dt)%BAS.PER;const t=BAS.t;let a=0,stage='normal';
   if(t>=BAS.WARN&&t<BAS.RISE)stage='warn';else if(t>=BAS.RISE&&t<BAS.HOLD){stage='rise';a=smooth(BAS.RISE,BAS.HOLD,t);}else if(t>=BAS.HOLD&&t<BAS.LOWER){stage='hold';a=1;}else if(t>=BAS.LOWER){stage='lower';a=1-smooth(BAS.LOWER,BAS.PER,t);}
-  if(stage!==basStage){if(stage==='warn'){SFX.siren();toast('🚨 곧 영도대교가 들립니다! 중구 쪽 도개 구간에서 대피하세요',4000);}if(stage==='rise'){tallX=-260;tallShip.visible=true;SFX.horn();}if(stage==='normal')toast('영도대교가 다시 내려왔어요');basStage=stage;}
+  if(stage!==basStage){if(stage==='warn'){SFX.siren();toast('🚨 곧 영도대교가 들립니다! 중구 쪽 상판 위에 있으면 같이 올라가요',4000);}if(stage==='rise'){tallX=-260;tallShip.visible=true;SFX.horn();}if(stage==='normal')toast('영도대교가 다시 내려왔어요');basStage=stage;}
   leafAngle=a*LEAF_MAX;leaf.rotation.x=-leafAngle;waterU.uLeafOpen.value=leafAngle>0.02?1:0;
   if(tallShip.visible){tallX+=dt*9;const y=waterHeight(tallX,SHIP_LANE);tallShip.position.set(tallX,y+1,SHIP_LANE);if(tallX>520)tallShip.visible=false;}
   const left=stage==='normal'?BAS.WARN-t:0;$('bascule').textContent=stage==='normal'?`다음 도개까지 ${Math.floor(left/60)}:${String(Math.floor(left%60)).padStart(2,'0')} (실제: 토 14:00)`:stage==='warn'?'🚨 도개 경보! 사이렌 울림':stage==='lower'?'⬇ 다리가 내려오는 중':'⬆ 영도대교 도개 중 (75°)';}
@@ -1236,12 +1259,20 @@ function updatePlayer(dt,time){let mx=0,mz=0;const canMove=['idle','showing'].in
   if(canMove){const fw=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y;const st=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x;
     const fx=Math.sin(CAM.yaw),fz=Math.cos(CAM.yaw),rx=-Math.cos(CAM.yaw),rz=Math.sin(CAM.yaw);mx=fx*fw+rx*st;mz=fz*fw+rz*st;const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l;}}
   const run=keys.ShiftLeft||keys.ShiftRight||touchRun;const sp=P.swim?2.6:(run?9:4.4);const mag=Math.hypot(mx,mz);
-  if(mag>0.05){P.heading=lerpAngle(P.heading,Math.atan2(mx,mz),dt*10);const dx=mx*sp*dt,dz=mz*sp*dt;if(canStand(P.pos.x+dx,P.pos.z,P.pos.y))P.pos.x+=dx;if(canStand(P.pos.x,P.pos.z+dz,P.pos.y))P.pos.z+=dz;}
+  // 도개 상판 위에 있으면 상판에 붙어서 함께 올라감
+  if(!P.onLeaf&&P.grounded&&!P.swim&&F.state!=='dead'&&leafAngle>0.002&&Math.abs(P.pos.x)<=BHW&&P.pos.z>LEAF0&&P.pos.z<LEAF1){const lt=leafTopAt(P.pos.z);if(lt!==null&&Math.abs(P.pos.y-lt)<0.9){P.onLeaf=true;P.leafS=(P.pos.z-LEAF0)/Math.cos(leafAngle);if(!P._leafMsg||time-P._leafMsg>30){P._leafMsg=time;toast('⬆ 상판과 함께 올라가요! 끝으로 가면 떨어져요',3000);}}}
+  if(P.onLeaf){if(leafAngle<0.002||F.state==='dead'){P.onLeaf=false;}else{
+    if(mag>0.05){P.heading=lerpAngle(P.heading,Math.atan2(mx,mz),dt*10);P.pos.x=clamp(P.pos.x+mx*sp*dt,-(BHW-0.8),BHW-0.8);P.leafS+=mz*sp*0.7*dt;}
+    if(keys.Space&&canMove){P.onLeaf=false;P.vy=7.2;P.grounded=false;SFX.jump();}
+    else{if(P.leafS<0.2){P.onLeaf=false;P.pos.set(P.pos.x,DECK,LEAF0-0.6);P.vy=0;}
+      else if(P.leafS>LEAF_LEN){P.onLeaf=false;P.grounded=false;P.vy=0;toast('으악! 상판 끝에서 미끄러졌어요');}
+      else{P.pos.z=LEAF0+P.leafS*Math.cos(leafAngle);P.pos.y=DECK+P.leafS*Math.sin(leafAngle);P.vy=0;P.grounded=true;}}}}
+  if(!P.onLeaf&&mag>0.05){P.heading=lerpAngle(P.heading,Math.atan2(mx,mz),dt*10);const dx=mx*sp*dt,dz=mz*sp*dt;if(canStand(P.pos.x+dx,P.pos.z,P.pos.y))P.pos.x+=dx;if(canStand(P.pos.x,P.pos.z+dz,P.pos.y))P.pos.z+=dz;}
   P.speed=lerp(P.speed,mag*sp,dt*10);const wh=waterHeight(P.pos.x,P.pos.z);
   if(P.swim){P.pos.y=lerp(P.pos.y,wh-1.15,dt*6);P.vy=0;if(Math.random()<dt*(1+mag*6))emit(P.pos.x+rand(-.4,.4),wh+0.05,P.pos.z+rand(-.4,.4),rand(-.5,.5),rand(0.5,1.8),rand(-.5,.5),rand(0.05,0.12),0.6,0);
     if(mag>0.1&&Math.random()<dt*2.5){spawnRing(P.pos.x,P.pos.z,0.35);addRipple(P.pos.x,P.pos.z,0.25);}
     if(keys.Space){for(let a=0;a<12;a++){const ang=a/12*Math.PI*2;const x=P.pos.x+Math.sin(ang)*1.4,z=P.pos.z+Math.cos(ang)*1.4;const g=groundBelow(x,z,LAND_H);if(g===LAND_H&&canStand(x+Math.sin(ang)*0.6,z+Math.cos(ang)*0.6,LAND_H)){P.pos.set(x+Math.sin(ang)*0.6,LAND_H,z+Math.cos(ang)*0.6);P.swim=false;P.vy=0;splash(x,z,0.5,16);toast('물 밖으로 올라왔어요');break;}}keys.Space=false;}
-  }else{if(keys.Space&&P.grounded&&canMove){P.vy=7.2;P.grounded=false;SFX.jump();}
+  }else if(!P.onLeaf){if(keys.Space&&P.grounded&&canMove){P.vy=7.2;P.grounded=false;SFX.jump();}
     const prevY=P.pos.y;P.vy-=24*dt;P.pos.y+=P.vy*dt;const g=groundBelow(P.pos.x,P.pos.z,prevY);
     if(g>-Infinity&&P.pos.y<=g){P.pos.y=g;P.vy=0;P.grounded=true;}else P.grounded=false;
     if(g===-Infinity&&P.pos.y<wh-0.9){const impact=Math.min(2,Math.abs(P.vy)/8);P.swim=true;splash(P.pos.x,P.pos.z,0.8+impact,60+Math.floor(impact*40),{up:1+impact*0.3});SFX.splash(0.9);CAM.shake=0.35;toast('풍덩! 🌊 안벽 가까이에서 Space로 올라가요',3500);cancelFishing();}
@@ -1482,7 +1513,7 @@ function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),0
   const cx=Math.round(P.pos.x),cz=Math.round(P.pos.z);waterNear.position.set(cx,0,cz);waterFar.position.set(cx,0,cz);waterU.uCenter.value.set(cx,0,cz);
   updateSky();envTimer+=dt;updateEnv(false);
   if(started){updateBascule(dt);updatePlayer(dt,time);updateFishing(dt,time);updateDanger(dt,time,actionHeld&&!actionPrev);}
-  updateWorld(dt,time);updateParticles(dt);updateRings(dt);updateCamera(dt);
+  updateLamps(dt);updateWorld(dt,time);updateParticles(dt);updateRings(dt);updateCamera(dt);
   if(frame%2===0){updateHUD();drawMinimap();}actionPrev=actionHeld;
   renderFrame(time);
   if(started){fpsAcc+=dt;fpsN++;if(fpsAcc>2){const fps=fpsN/fpsAcc;fpsAcc=0;fpsN=0;if(fps<26&&QL>0){lowFpsT+=2;if(lowFpsT>=6){QL--;setupPipeline();toast('프레임이 낮아 그래픽을 '+QL_NAMES[QL]+'(으)로 낮췄어요 (G로 변경)',3500);lowFpsT=0;}}else lowFpsT=0;}}}
